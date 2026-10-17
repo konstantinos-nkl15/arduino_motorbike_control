@@ -1,0 +1,117 @@
+function motorbike_manual2(m, s, e, Vmax, K_i, K_p, MAX_speed)
+clc;
+speed_In      = 0;
+ref_speed     = 0;
+angle_In      = 0.5;
+ang_dist      = 0;
+running       = true;
+ang_speed_out = 0;
+I             = 0;
+dt            = 0;
+status        = 0;
+fprintf( 'Motorbike ON: on\nSpeed : %.1f\nAngle : %.1f\n', speed_In, angle_In);
+%power on
+m.Speed   = speed_In;
+resetCount(e);
+writePosition(s, angle_In);
+[speed_In, I] = cruise_control(ref_speed , ang_speed_out , Vmax , I , K_p , K_i ,dt, MAX_speed);
+tic;
+% Παράθυρο που πιάνει τα πλήκτρα. Πρέπει να έχει την εστίαση.
+f = figure('Name', 'VELAKIA EDO - to parathyro prepei na einai epilegmeno', ...
+           'NumberTitle', 'off', ...
+           'MenuBar', 'none', ...
+           'ToolBar', 'none', ...
+           'Position', [100 100 460 90], ...
+           'KeyPressFcn', @onKey, ...
+           'CloseRequestFcn', @onClose);
+axis off
+
+start(m)
+
+
+while running
+    clc;
+    fprintf( ['Motorbike : ON\nSpeed : %.1f r/s\nAngular_distance : %.1f\n' ...
+        'Speed_IN : %.1f\nSteering Angle : %.1f\nRef_Speed : %.1f\n'],ang_speed_out,ang_dist, speed_In, angle_In,ref_speed);
+
+    [pos_0, t0] = readCount(e);
+    pause(0.05);
+    [pos_1, t1] = readCount(e);
+    clc;
+    
+
+    
+    ang_speed_out = (pos_1 - pos_0) / seconds(t1 - t0) * (2 * pi / 1200);
+    ang_dist      = ang_dist + (abs(pos_1-pos_0)) * (2 * pi / 1200);
+
+    dt =toc;
+    if ref_speed >= 17 
+        [speed_In, I] = cruise_control(ref_speed , ang_speed_out , Vmax , I , K_p , K_i ,dt);
+        status = 1;
+    elseif ref_speed <15 && status == 1
+        speed_In = ref_speed / sqrt(MAX_speed^2+ref_speed^2);
+        status = 0;
+        I=0;
+    elseif ref_speed >= 15 && ref_speed <= 17 && status == 0
+        speed_In = ref_speed / sqrt(MAX_speed^2+ref_speed^2);
+        I=0;
+    elseif ref_speed >= 15 && ref_speed <= 17 && status == 1
+        [speed_In, I] = cruise_control(ref_speed , ang_speed_out , Vmax , I , K_p , K_i ,dt);
+    else
+        speed_In = ref_speed / sqrt(MAX_speed^2+ 1.5 * ref_speed^2);
+        I=0;
+    end
+    m.Speed   = speed_In;
+
+    fprintf( ['Motorbike : ON\nSpeed : %.1f r/s\nAngular_distance : %.1f\n' ...
+        'Speed_IN : %.1f\nSteering Angle : %.1f\nRef_Speed : %.1f\n'],ang_speed_out,ang_dist, speed_In, angle_In,ref_speed);
+    tic;
+end
+
+stop(m);
+delete(f);
+clc;
+fprintf( 'Motorbike Q OFF\nSpeed : %.1f\nAngle : %.1f\n', speed_In, angle_In);
+
+
+% ================= εσωτερικές συναρτήσεις =================
+
+    function onKey(~, event)
+        switch event.Key
+%Speed Adjustment
+            case 'uparrow'
+                ref_speed = min( MAX_speed, ref_speed + 1);
+            case 'downarrow'
+                ref_speed = max(-MAX_speed, ref_speed - 1);
+            case 'p'
+                m.Speed   = 0;
+                ref_speed = 0;
+                stop(m);
+            case 'i'
+                ref_speed = 0;
+                start(m);
+                
+
+%Steering adjustment
+            case 'rightarrow'
+                  angle_In = max(0, angle_In - 0.1);
+            case 'leftarrow'
+                  angle_In = min(1, angle_In + 0.1);
+
+            case {'q', 'escape'}
+                running = false;
+                return
+            otherwise
+                return
+        end
+        m.Speed = speed_In;
+        writePosition(s, angle_In);
+% Speedometer Print
+        %fprintf( 'Motorbike : ON\nSpeed : %.1f\nAngle : %.1f\n', speed_In, angle_In);
+    end
+
+    function onClose(~, ~)
+        running = false;
+    end
+
+end
