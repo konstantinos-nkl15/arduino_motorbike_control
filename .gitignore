@@ -1,0 +1,21 @@
+# MATLAB
+*.asv
+*.m~
+*.mex*
+.MATLABDriveTag
+
+# Simulink
+slprj/
+sccprj/
+*.slxc
+*.autosave
+*.slx.autosave
+*.slx.r20*
+
+# Code generation
+codegen/
+*_ert_rtw/
+*_grt_rtw/
+
+# OS
+.DS_Store
